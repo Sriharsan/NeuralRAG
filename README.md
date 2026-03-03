@@ -1,42 +1,5 @@
 # RAG (Retrieval-augmented generation) ChatBot
 
-[![CI](https://github.com/umbertogriffo/rag-chatbot/workflows/CI/badge.svg)](https://github.com/umbertogriffo/rag-chatbot/actions/workflows/ci.yaml)
-[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
-[![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-
-> [!IMPORTANT]
-> Disclaimer:
-> The code has been tested on:
->   * `Ubuntu 22.04.2 LTS` running on a Lenovo Legion 5 Pro with twenty `12th Gen Intel® Core™ i7-12700H` and
-      an `NVIDIA GeForce RTX 3060`.
->   * `MacOS Sonoma 14.3.1` running on a MacBook Pro M1 (2020).
->
-> If you are using another Operating System or different hardware, and you can't load the models, please
-> take a look at the official Llama Cpp Python's
-> GitHub [issue](https://github.com/abetlen/llama-cpp-python/issues).
-
-> [!WARNING]
-> - `lama_cpp_pyhon` doesn't use `GPU` on `M1` if you are running an `x86` version of `Python`. More
-    info [here](https://github.com/abetlen/llama-cpp-python/issues/756#issuecomment-1870324323).
-> - It's important to note that the large language model sometimes generates hallucinations or false information.
-
-## Table of contents
-
-- [Introduction](#introduction)
-- [Prerequisites](#prerequisites)
-    - [Install Poetry](#install-poetry)
-- [Bootstrap Environment](#bootstrap-environment)
-    - [How to use the make file](#how-to-use-the-make-file)
-- [Using the Open-Source Models Locally](#using-the-open-source-models-locally)
-    - [Supported Models](#supported-models)
-- [Supported Response Synthesis strategies](#supported-response-synthesis-strategies)
-- [Example Data](#example-data)
-- [Build the memory index](#build-the-memory-index)
-- [Run the Chatbot](#run-the-chatbot)
-- [Run the RAG Chatbot](#run-the-rag-chatbot)
-- [How to debug the Streamlit app on Pycharm](#how-to-debug-the-streamlit-app-on-pycharm)
-- [References](#references)
-
 ## Introduction
 
 This project combines the power
@@ -186,26 +149,20 @@ python chatbot/memory_builder.py --chunk-size 1000 --chunk-overlap 50
 To interact with a GUI type:
 
 ```shell
-streamlit run chatbot/chatbot_app.py -- --model llama-3.1 --max-new-tokens 1024
+streamlit run chatbot/chatbot_app.py -- --model deepseek-r1:7b --max-new-tokens 1024
 ```
-
-![conversation-aware-chatbot.gif](images/conversation-aware-chatbot.gif)
 
 ## Run the RAG Chatbot
 
 To interact with a GUI type:
 
 ```shell
-streamlit run chatbot/rag_chatbot_app.py -- --model llama-3.1 --k 2 --synthesis-strategy async-tree-summarization
+streamlit run chatbot/rag_chatbot_app.py -- --model deep-seek-r1:7b --k 2 --synthesis-strategy async-tree-summarization
 ```
-
-![rag_chatbot_example.gif](images%2Frag_chatbot_example.gif)
 
 You can also upload a Markdown file using the file uploader in the sidebar.
 The Document management section shows the indexed documents.
 Once you upload one or multiple files, they will be: uploaded → chunked → embedded → upserted to Chroma
-
-![rag_chatbot_load_doc_example.gif](images/rag_chatbot_load_doc_example.gif)
 
 ## How to debug the Streamlit app on Pycharm
 
