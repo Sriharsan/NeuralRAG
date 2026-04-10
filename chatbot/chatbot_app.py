@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 
 import streamlit as st
+from app_pages import ChatPageParameters, render_chat_page
 from bot.client.lama_cpp_client import LamaCppClient
 from bot.conversation.chat_history import ChatHistory
 from bot.conversation.conversation_handler import answer, extract_content_after_reasoning
@@ -153,7 +154,7 @@ def get_args() -> argparse.Namespace:
 if __name__ == "__main__":
     try:
         args = get_args()
-        main(args)
+        render_chat_page(ChatPageParameters(model=args.model, max_new_tokens=args.max_new_tokens))
     except Exception as error:
         logger.error(f"An error occurred: {str(error)}", exc_info=True, stack_info=True)
         sys.exit(1)

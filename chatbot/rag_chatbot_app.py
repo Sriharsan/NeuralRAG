@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 
 import streamlit as st
+from app_pages import RagPageParameters, render_rag_page
 from bot.client.lama_cpp_client import LamaCppClient
 from bot.conversation.chat_history import ChatHistory
 from bot.conversation.conversation_handler import answer_with_context, extract_content_after_reasoning, refine_question
@@ -346,7 +347,16 @@ def get_args() -> argparse.Namespace:
 if __name__ == "__main__":
     try:
         args = get_args()
-        main(args)
+        render_rag_page(
+            RagPageParameters(
+                model=args.model,
+                synthesis_strategy=args.synthesis_strategy,
+                k=args.k,
+                max_new_tokens=args.max_new_tokens,
+                chunk_size=args.chunk_size,
+                chunk_overlap=args.chunk_overlap,
+            )
+        )
     except Exception as error:
         logger.error(f"An error occurred: {str(error)}", exc_info=True, stack_info=True)
         sys.exit(1)

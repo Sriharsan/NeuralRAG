@@ -3,6 +3,7 @@ from enum import Enum
 
 class Format(Enum):
     MARKDOWN = "markdown"
+    TEXT = "text"
 
 
 SUPPORTED_FORMATS = {
@@ -24,7 +25,18 @@ SUPPORTED_FORMATS = {
         "\n",
         " ",
         "",
-    ]
+    ],
+    Format.TEXT.value: [
+        "\n\n",
+        "\n",
+        ". ",
+        "? ",
+        "! ",
+        "; ",
+        ", ",
+        " ",
+        "",
+    ],
 }
 
 

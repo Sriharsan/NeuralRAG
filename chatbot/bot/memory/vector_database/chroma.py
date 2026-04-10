@@ -269,33 +269,59 @@ class Chroma:
         """
         texts = [clean(doc.page_content, no_emoji=True) for doc in chunks]
         metadata = [doc.metadata for doc in chunks]
+        ids = generate_deterministic_ids(
+            [f"{meta.get('source_id', meta.get('source', 'unknown'))}::{text}" for text, meta in zip(texts, metadata)]
+        )
         self.from_texts(
             texts=texts,
             metadata=metadata,
+            ids=ids,
         )
 
-    def get_indexed_documents(self) -> list[str]:
+    def get_indexed_documents(self) -> list[dict[str, str]]:
         """
-        Get list of unique document sources in the index.
-
-        Args:
-            index: Chroma vector database instance
+        Get unique indexed documents and their metadata.
 
         Returns:
-            List of unique source document names
+            List of document metadata dictionaries.
         """
         try:
-            # Get all items from collection
             results = self.collection.get()
             if results and "metadatas" in results:
-                sources = set()
-                for metadatas in results["metadatas"]:
-                    if metadatas and "source" in metadatas:
-                        sources.add(metadatas["source"])
-                return sorted(sources)
+                documents_by_id: dict[str, dict[str, str]] = {}
+                for metadata in results["metadatas"]:
+                    if not metadata:
+                        continue
+
+                    source_id = metadata.get("source_id") or metadata.get("source")
+                    if not source_id:
+                        continue
+
+                    documents_by_id[source_id] = {
+                        "source": metadata.get("source", "Unknown document"),
+                        "source_id": source_id,
+                        "file_name": metadata.get("file_name", metadata.get("source", "Unknown document")),
+                        "file_type": metadata.get("file_type", "FILE"),
+                        "indexed_at": metadata.get("indexed_at", ""),
+                    }
+
+                return sorted(
+                    documents_by_id.values(),
+                    key=lambda item: (item.get("indexed_at", ""), item.get("file_name", "")),
+                    reverse=True,
+                )
         except Exception as e:
             logger.warning(f"Could not retrieve indexed documents: {e}")
         return []
+
+    def delete_document(self, source_id: str) -> None:
+        """
+        Delete all indexed chunks for a given document.
+
+        Args:
+            source_id: Stable document identifier stored in metadata.
+        """
+        self.collection.delete(where={"source_id": source_id})
 
     def delete_collection(self, collection_name: str = "default") -> None:
         """
@@ -316,6 +342,7 @@ class Chroma:
         query: str,
         k: int = 4,
         threshold: float | None = 0.2,
+        filter: dict[str, str] | None = None,
     ) -> tuple[list[Document], list[dict[str, Any]]]:
         """
         Performs similarity search on the given query.
@@ -339,7 +366,7 @@ class Chroma:
         """
         # `similarity_search_with_relevance_scores` return docs and relevance scores in the range [0, 1].
         # 0 is dissimilar, 1 is most similar.
-        docs_and_scores = self.similarity_search_with_relevance_scores(query, k)
+        docs_and_scores = self.similarity_search_with_relevance_scores(query, k, filter=filter)
 
         if threshold is not None:
             docs_and_scores = [doc for doc in docs_and_scores if doc[1] > threshold]
@@ -355,6 +382,7 @@ class Chroma:
                 {
                     "score": round(score, 3),
                     "document": doc.metadata.get("source"),
+                    "source_id": doc.metadata.get("source_id"),
                     "content_preview": f"{doc.page_content[0:256]}...",
                 }
             )
@@ -422,7 +450,12 @@ class Chroma:
             )
         ]
 
-    def similarity_search_with_relevance_scores(self, query: str, k: int = 4) -> list[tuple[Document, float]]:
+    def similarity_search_with_relevance_scores(
+        self,
+        query: str,
+        k: int = 4,
+        filter: dict[str, str] | None = None,
+    ) -> list[tuple[Document, float]]:
         """
         Return docs and relevance scores in the range [0, 1].
 
@@ -438,7 +471,7 @@ class Chroma:
         # relevance_score_fn is a function to calculate relevance score from distance.
         relevance_score_fn = get_relevance_score_fn(self.distance_metric)
 
-        docs_and_scores = self.similarity_search_with_score(query, k)
+        docs_and_scores = self.similarity_search_with_score(query, k, filter=filter)
         docs_and_similarities = [(doc, relevance_score_fn(score)) for doc, score in docs_and_scores]
         if any(similarity < 0.0 or similarity > 1.0 for _, similarity in docs_and_similarities):
             logger.warning(f"Relevance scores must be between 0 and 1, got {docs_and_similarities}")

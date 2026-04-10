@@ -168,3 +168,6 @@ vector_store/
 *.gguf
 *.bin
 *.sqlite3
+
+# Claude Code local settings
+.claude/

@@ -1,13 +1,18 @@
 import concurrent.futures
+import tempfile
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
+from charset_normalizer import from_bytes
 from entities.document import Document
 from helpers.log import get_logger
 from tqdm import tqdm
 from unstructured.partition.auto import partition
 
 logger = get_logger(__name__)
+
+TEXT_FILE_EXTENSIONS = {".txt", ".md", ".markdown", ".csv", ".html", ".htm"}
 
 
 class DirectoryLoader:
@@ -93,6 +98,73 @@ class DirectoryLoader:
             finally:
                 if pbar:
                     pbar.update(1)
+
+
+def detect_file_encoding(file_name: str, raw_bytes: bytes) -> str | None:
+    """
+    Detect the character encoding for text-based files.
+
+    Args:
+        file_name: Original uploaded file name.
+        raw_bytes: Raw file payload.
+
+    Returns:
+        The detected encoding for text-like files, or ``None`` for binary files.
+    """
+    suffix = Path(file_name).suffix.lower()
+    if suffix not in TEXT_FILE_EXTENSIONS:
+        return None
+
+    match = from_bytes(raw_bytes).best()
+    if match and match.encoding:
+        return match.encoding
+
+    return "utf-8"
+
+
+def load_uploaded_document(file_name: str, raw_bytes: bytes) -> Document:
+    """
+    Load an uploaded file into a single unstructured document.
+
+    Args:
+        file_name: Original uploaded file name.
+        raw_bytes: Raw file payload.
+
+    Returns:
+        A document containing the extracted text and normalized metadata.
+    """
+    suffix = Path(file_name).suffix.lower()
+    detected_encoding = detect_file_encoding(file_name, raw_bytes)
+    file_hash = sha256(raw_bytes).hexdigest()
+    normalized_bytes = raw_bytes
+
+    if detected_encoding is not None:
+        normalized_bytes = raw_bytes.decode(detected_encoding, errors="ignore").encode("utf-8")
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+        temp_file.write(normalized_bytes)
+        temp_path = Path(temp_file.name)
+
+    try:
+        partition_kwargs: dict[str, Any] = {}
+        if detected_encoding is not None:
+            partition_kwargs["encoding"] = "utf-8"
+
+        elements = partition(filename=str(temp_path), **partition_kwargs)
+        text = "\n\n".join(str(element) for element in elements if str(element).strip())
+
+        return Document(
+            page_content=text,
+            metadata={
+                "source": file_name,
+                "source_id": file_hash,
+                "file_name": file_name,
+                "file_type": suffix.lstrip(".").upper() or "FILE",
+                "encoding": detected_encoding or "binary",
+            },
+        )
+    finally:
+        temp_path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
